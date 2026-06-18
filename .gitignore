@@ -1,0 +1,12 @@
+# зависимости и сборка
+node_modules/
+dist/
+
+# логи и мусор ОС
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# локальные данные/окружение
+.env
