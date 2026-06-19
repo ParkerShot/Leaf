@@ -1,5 +1,7 @@
 const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
   const folderSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>';
+  const smartSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>';
+  const tagSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg>';
   const $=id=>document.getElementById(id);
 
   const API = window.notesAPI || {
@@ -30,7 +32,7 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
       deleteForeverTitle:"Удалить навсегда?",deleteForeverMsg:"Это действие нельзя отменить.",deleteOk:"Удалить",
       welcomeTitle:"Добро пожаловать 👋",welcomeBody:"Это ваши заметки. Они сохраняются на этом компьютере автоматически.<br><br>Создайте новую заметку кнопкой-карандашом справа сверху.",
       rename:"Переименовать",renameFolderTitle:"Переименовать папку",deleteFolderMenu:"Удалить папку",deleteFolderTitle:"Удалить папку?",deleteFolderMsg:"Заметки из неё попадут в «Недавно удалённые».",ctxDelete:"Удалить",
-      duplicate:"Дублировать",exportPdf:"Экспорт в PDF",lockNow:"Заблокировать сейчас",removePass:"Снять пароль",folderLockedTitle:"В папке есть защищённые заметки",folderLockedMsg:"Сначала снимите с них пароль или переместите их в другую папку.",
+      duplicate:"Дублировать",exportPdf:"Экспорт в PDF",lockNow:"Заблокировать сейчас",removePass:"Снять пароль",folderLockedTitle:"В папке есть защищённые заметки",folderLockedMsg:"Сначала снимите с них пароль или переместите их в другую папку.",tags:"Теги",newSmartFolder:"Создать умную папку",
       defPersonal:"Личное",defWork:"Работа"},
     en:{folders:"Folders",allNotes:"All Notes",recentlyDeleted:"Recently Deleted",search:"Search",
       sortUpdated:"Date Edited",sortCreated:"Date Created",sortTitle:"Title",
@@ -52,7 +54,7 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
       deleteForeverTitle:"Delete Forever?",deleteForeverMsg:"This action cannot be undone.",deleteOk:"Delete",
       welcomeTitle:"Welcome 👋",welcomeBody:"These are your notes. They are saved on this computer automatically.<br><br>Create a new note using the pencil button at the top right.",
       rename:"Rename",renameFolderTitle:"Rename Folder",deleteFolderMenu:"Delete Folder",deleteFolderTitle:"Delete Folder?",deleteFolderMsg:"Its notes will be moved to Recently Deleted.",ctxDelete:"Delete",
-      duplicate:"Duplicate",exportPdf:"Export to PDF",lockNow:"Lock Now",removePass:"Remove Password",folderLockedTitle:"This folder has protected notes",folderLockedMsg:"Remove their password or move them to another folder first.",
+      duplicate:"Duplicate",exportPdf:"Export to PDF",lockNow:"Lock Now",removePass:"Remove Password",folderLockedTitle:"This folder has protected notes",folderLockedMsg:"Remove their password or move them to another folder first.",tags:"Tags",newSmartFolder:"New Smart Folder",
       defPersonal:"Personal",defWork:"Work"}
   };
   let lang="ru";
@@ -117,7 +119,28 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
     refreshTitle();
     const n=notes.find(x=>x.id===activeId); if(n){updatePin(n);updateLock(n);}
   }
-  function refreshTitle(){$("folderTitle").textContent=activeFolder==="trash"?t("recentlyDeleted"):folderName(activeFolder);}
+  function refreshTitle(){
+    let txt;
+    if(activeFolder==="trash")txt=t("recentlyDeleted");
+    else if(activeFolder.startsWith("tag:"))txt="#"+activeFolder.slice(4);
+    else txt=folderName(activeFolder);
+    $("folderTitle").textContent=txt;
+  }
+  // --- Теги (#тег) ---
+  function extractTags(n){
+    const text=(n.title||"")+" "+strip(n.locked?bodyHtml(n):n.html);
+    const out=new Map();
+    const re=/(^|[^\p{L}\p{N}_#])#([\p{L}][\p{L}\p{N}_\-]*)/gu;
+    let m;
+    while((m=re.exec(text))){const tag=m[2];const k=tag.toLowerCase();if(!out.has(k))out.set(k,tag);}
+    return [...out.values()];
+  }
+  function noteHasTag(n,tag){const k=tag.toLowerCase();return extractTags(n).some(x=>x.toLowerCase()===k);}
+  function allTags(){
+    const counts=new Map();
+    notes.filter(n=>!n.deleted).forEach(n=>extractTags(n).forEach(tag=>{const k=tag.toLowerCase();const e=counts.get(k)||{tag,count:0};e.count++;counts.set(k,e);}));
+    return [...counts.values()].sort((a,b)=>a.tag.localeCompare(b.tag,locale()));
+  }
 
   let folders=[], notes=[], theme="light";
   let activeId=null, activeFolder="all", query="", sortBy="updated";
@@ -147,20 +170,47 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
   function renderFolders(){
     const trashCount=notes.filter(n=>n.deleted).length;
     let html=folders.map(f=>{
-      const count=f.id==="all"?notes.filter(n=>!n.deleted).length:notes.filter(n=>n.folder===f.id&&!n.deleted).length;
-      const icon=f.id==="all"?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/></svg>':folderSVG;
+      let count;
+      if(f.id==="all")count=notes.filter(n=>!n.deleted).length;
+      else if(f.smart)count=notes.filter(n=>!n.deleted&&noteHasTag(n,f.tag)).length;
+      else count=notes.filter(n=>n.folder===f.id&&!n.deleted).length;
+      const icon=f.id==="all"?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/></svg>':(f.smart?smartSVG:folderSVG);
       return `<div class="folder ${f.id===activeFolder?"active":""}" data-id="${f.id}">${icon}<span class="f-name">${esc(folderName(f.id))}</span><span class="f-count">${count||""}</span></div>`;
     }).join("");
     html+='<div class="rail-sep"></div>';
     html+=`<div class="folder ${activeFolder==="trash"?"active":""}" data-id="trash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span class="f-name">${t("recentlyDeleted")}</span><span class="f-count">${trashCount||""}</span></div>`;
+    const tags=allTags();
+    if(tags.length){
+      html+='<div class="rail-label">'+t("tags")+'</div>';
+      html+=tags.map(({tag,count})=>`<div class="folder tag-row ${activeFolder==="tag:"+tag.toLowerCase()?"active":""}" data-tag="${esc(tag)}">${tagSVG}<span class="f-name">#${esc(tag)}</span><span class="f-count">${count||""}</span></div>`).join("");
+    }
     $("folderList").innerHTML=html;
-    $("folderList").querySelectorAll(".folder").forEach(d=>{d.onclick=()=>{activeFolder=d.dataset.id;activeId=null;closeAll();renderFolders();renderList();refreshTitle();};const f=folders.find(x=>x.id===d.dataset.id);if(d.dataset.id!=="trash"&&f&&!f.system){d.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();folderContextMenu(f,e.clientX,e.clientY);};}});
+    $("folderList").querySelectorAll(".folder").forEach(d=>{
+      if(d.dataset.tag!==undefined){
+        d.onclick=()=>{activeFolder="tag:"+d.dataset.tag.toLowerCase();activeId=null;closeAll();renderFolders();renderList();refreshTitle();};
+        d.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();tagContextMenu(d.dataset.tag,e.clientX,e.clientY);};
+        return;
+      }
+      d.onclick=()=>{activeFolder=d.dataset.id;activeId=null;closeAll();renderFolders();renderList();refreshTitle();};
+      const f=folders.find(x=>x.id===d.dataset.id);
+      if(d.dataset.id!=="trash"&&f&&!f.system){d.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();folderContextMenu(f,e.clientX,e.clientY);};}
+    });
+  }
+  function tagContextMenu(tag,x,y){
+    showCtx(x,y,[
+      {label:t("newSmartFolder"),action:()=>{if(!folders.some(f=>f.smart&&f.tag.toLowerCase()===tag.toLowerCase())){folders.push({id:"s"+Date.now(),name:tag,smart:true,tag});renderFolders();persist();}}}
+    ]);
   }
 
   function renderList(){
     const q=query.toLowerCase();
-    let items=notes.filter(n=>activeFolder==="trash"?n.deleted:(!n.deleted&&(activeFolder==="all"||n.folder===activeFolder)))
-      .filter(n=>n.title.toLowerCase().includes(q)||(!n.locked&&strip(n.html).toLowerCase().includes(q)));
+    let items;
+    if(activeFolder==="trash")items=notes.filter(n=>n.deleted);
+    else if(activeFolder.startsWith("tag:")){const tg=activeFolder.slice(4);items=notes.filter(n=>!n.deleted&&noteHasTag(n,tg));}
+    else{const sf=folders.find(f=>f.id===activeFolder&&f.smart);
+      if(sf)items=notes.filter(n=>!n.deleted&&noteHasTag(n,sf.tag));
+      else items=notes.filter(n=>!n.deleted&&(activeFolder==="all"||n.folder===activeFolder));}
+    items=items.filter(n=>n.title.toLowerCase().includes(q)||(!n.locked&&strip(n.html).toLowerCase().includes(q)));
     items.sort((a,b)=>{
       if(activeFolder!=="trash"&&a.pinned!==b.pinned)return b.pinned-a.pinned;
       if(sortBy==="title")return a.title.localeCompare(b.title,locale());
@@ -213,7 +263,7 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
     n.title=$("editTitle").value;n.updated=Date.now();const html=$("editBody").innerHTML;
     if(n.locked){sessionText.set(n.id,html);const p=sessionPass.get(n.id);if(p){n.enc=await API.encrypt(html,p);n.html="";}}
     else n.html=html;
-    renderList();persist();
+    renderList();renderFolders();persist();
   }
 
   $("langBtn").onclick=()=>{lang=lang==="ru"?"en":"ru";applyI18n();renderFolders();renderList();persist();};
@@ -362,6 +412,14 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
   }
 
   function folderContextMenu(f,x,y){
+    if(f.smart){
+      showCtx(x,y,[
+        {label:t("rename"),action:async()=>{const name=await dlgInput({title:t("renameFolderTitle"),placeholder:t("folderNamePh"),value:f.name,ok:t("ok")});if(name&&name.trim()){f.name=name.trim();renderFolders();refreshTitle();persist();}}},
+        {sep:true},
+        {label:t("deleteFolderMenu"),danger:true,action:()=>{folders=folders.filter(x=>x.id!==f.id);if(activeFolder===f.id){activeFolder="all";activeId=null;closeAll();}renderFolders();renderList();refreshTitle();persist();}}
+      ]);
+      return;
+    }
     showCtx(x,y,[
       {label:t("newNote"),action:()=>{activeFolder=f.id;refreshTitle();renderFolders();newNote(f.id);}},
       {label:t("newFolder"),action:async()=>{const name=await dlgInput({title:t("newFolderTitle"),placeholder:t("folderNamePh"),ok:t("create")});if(name&&name.trim()){folders.push({id:"f"+Date.now(),name:name.trim()});renderFolders();persist();}}},
