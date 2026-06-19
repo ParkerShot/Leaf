@@ -57,7 +57,7 @@ function createWindow() {
     minWidth: 720,
     minHeight: 460,
     backgroundColor: '#f2f2f7',
-    title: 'Notes',
+    title: 'Leaf',
     icon: path.join(__dirname, 'icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
