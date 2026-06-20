@@ -177,4 +177,4 @@
   .app.single .rail,.app.single .sidebar{display:none}
 
   /* Подсветка #тегов в тексте заметки */
-  .tag-hl{color:var(--accent-strong);font-weight:600;cursor:pointer}
+  .tag-hl{color:var(--accent-strong);font-weight:600}

@@ -185,7 +185,7 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
       notes=saved.notes;
     }
     renderFolders();renderList();
-    if(!editing&&activeId!=null){const n=notes.find(x=>x.id===activeId);if(n&&!n.deleted&&!(n.locked&&!sessionPass.has(n.id))){$("editTitle").value=n.title;$("editBody").innerHTML=bodyHtml(n);}}
+    if(!editing&&activeId!=null){const n=notes.find(x=>x.id===activeId);if(n&&!n.deleted&&!(n.locked&&!sessionPass.has(n.id))){$("editTitle").value=n.title;$("editBody").innerHTML=bodyHtml(n);highlightTags($("editBody"));}}
   }
 
   let saveTimer=null;
@@ -270,7 +270,7 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
     if(n.deleted){$("noSelection").style.display="none";$("page").style.display="block";$("toolbar").style.display="none";$("lockScreen").classList.remove("show");$("trashBar").classList.add("show");$("editTitle").value=n.title;$("editBody").innerHTML=n.html;$("editDate").textContent="";$("editBody").setAttribute("contenteditable","false");$("editTitle").readOnly=true;return;}
     if(n.locked&&!sessionPass.has(n.id)){$("noSelection").style.display="none";$("page").style.display="none";$("toolbar").style.display="none";$("trashBar").classList.remove("show");$("lockScreen").classList.add("show");$("unlockInput").value="";$("unlockInput").placeholder=t("enterPass");setTimeout(()=>$("unlockInput").focus(),50);return;}
     showEditor();$("editBody").setAttribute("contenteditable","true");$("editTitle").readOnly=false;
-    $("editTitle").value=n.title;$("editBody").innerHTML=bodyHtml(n);
+    $("editTitle").value=n.title;$("editBody").innerHTML=bodyHtml(n);highlightTags($("editBody"));
     $("editDate").textContent=t("edited")+new Date(n.updated).toLocaleString(locale(),{day:"2-digit",month:"long",hour:"2-digit",minute:"2-digit"});
     updatePin(n);updateLock(n);
   }
@@ -297,7 +297,31 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
   $("sortSelect").onchange=e=>{sortBy=e.target.value;renderList();};
 
   $("editTitle").addEventListener("input",saveActive);
+  $("editTitle").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("editBody").focus();const sel=window.getSelection();const r=document.createRange();r.selectNodeContents($("editBody"));r.collapse(true);sel.removeAllRanges();sel.addRange(r);}});
   $("editBody").addEventListener("input",saveActive);
+  // теги красятся, когда заметку не редактируешь; при входе в текст — снимаем (чтобы набор был чистым)
+  $("editBody").addEventListener("focus",()=>unwrapTags($("editBody")));
+  $("editBody").addEventListener("blur",()=>{if($("editBody").getAttribute("contenteditable")==="true")highlightTags($("editBody"));});
+  function unwrapTags(root){if(!root)return;root.querySelectorAll("span.tag-hl").forEach(s=>s.replaceWith(document.createTextNode(s.textContent)));root.normalize();}
+  function highlightTags(root){
+    if(!root)return;
+    unwrapTags(root);
+    const g=/(^|[^\p{L}\p{N}_#])#([\p{L}][\p{L}\p{N}_\-]*)/gu;
+    const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null);
+    const targets=[];let node;
+    while(node=walker.nextNode()){if(node.parentElement&&node.parentElement.closest(".check-box"))continue;g.lastIndex=0;if(g.test(node.nodeValue))targets.push(node);}
+    targets.forEach(tn=>{
+      const s=tn.nodeValue;const frag=document.createDocumentFragment();let last=0;g.lastIndex=0;let m;
+      while(m=g.exec(s)){
+        const start=m.index+m[1].length,end=g.lastIndex;
+        if(start>last)frag.appendChild(document.createTextNode(s.slice(last,start)));
+        const span=document.createElement("span");span.className="tag-hl";span.textContent=s.slice(start,end);
+        frag.appendChild(span);last=end;
+      }
+      if(last<s.length)frag.appendChild(document.createTextNode(s.slice(last)));
+      tn.replaceWith(frag);
+    });
+  }
   $("fmtSelect").onchange=e=>{document.execCommand("formatBlock",false,e.target.value);$("editBody").focus();saveActive();};
   document.querySelectorAll(".tool[data-cmd]").forEach(b=>b.onclick=()=>{document.execCommand(b.dataset.cmd,false,null);$("editBody").focus();refreshState();saveActive();});
   $("hlBtn").onclick=()=>{const sel=window.getSelection();if(!sel.rangeCount||sel.isCollapsed){$("editBody").focus();return;}const r=sel.getRangeAt(0);const m=document.createElement("mark");try{m.appendChild(r.extractContents());r.insertNode(m);}catch(e){}$("editBody").focus();saveActive();};
