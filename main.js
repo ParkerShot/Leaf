@@ -3,9 +3,38 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 
+// Единое стабильное место хранения, не зависит от имени сборки:
+// %AppData%/Leaf (Windows) — переживает переустановку приложения.
+app.setPath('userData', path.join(app.getPath('appData'), 'Leaf'));
+
 // ---- Хранилище: один JSON-файл в папке профиля приложения ----
 function storeFile() {
   return path.join(app.getPath('userData'), 'notes-data.json');
+}
+
+// Перенос заметок из старых расположений (прежние имена/версии),
+// чтобы при переустановке/переименовании ничего не пропало.
+function migrateIfNeeded() {
+  const target = storeFile();
+  if (fs.existsSync(target)) return;
+  const base = app.getPath('appData');
+  const legacy = ['Notes', 'notes-app', 'leaf', 'notes', 'Notes App']
+    .map(n => path.join(base, n, 'notes-data.json'));
+  let best = null, bestTime = 0;
+  for (const f of legacy) {
+    try {
+      if (f !== target && fs.existsSync(f)) {
+        const st = fs.statSync(f);
+        if (st.mtimeMs > bestTime) { bestTime = st.mtimeMs; best = f; }
+      }
+    } catch (e) {}
+  }
+  if (best) {
+    try {
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.copyFileSync(best, target);
+    } catch (e) { console.error('Миграция не удалась:', e); }
+  }
 }
 
 function loadStore() {
@@ -122,6 +151,7 @@ ipcMain.handle('note:exportPdf', async (e, { title, html }) => {
 });
 
 app.whenReady().then(() => {
+  migrateIfNeeded();
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });

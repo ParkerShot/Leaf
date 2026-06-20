@@ -267,9 +267,30 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
     if(n.deleted){$("noSelection").style.display="none";$("page").style.display="block";$("toolbar").style.display="none";$("lockScreen").classList.remove("show");$("trashBar").classList.add("show");$("editTitle").value=n.title;$("editBody").innerHTML=n.html;$("editDate").textContent="";$("editBody").setAttribute("contenteditable","false");$("editTitle").readOnly=true;return;}
     if(n.locked&&!sessionPass.has(n.id)){$("noSelection").style.display="none";$("page").style.display="none";$("toolbar").style.display="none";$("trashBar").classList.remove("show");$("lockScreen").classList.add("show");$("unlockInput").value="";$("unlockInput").placeholder=t("enterPass");setTimeout(()=>$("unlockInput").focus(),50);return;}
     showEditor();$("editBody").setAttribute("contenteditable","true");$("editTitle").readOnly=false;
-    $("editTitle").value=n.title;$("editBody").innerHTML=bodyHtml(n);
+    $("editTitle").value=n.title;$("editBody").innerHTML=bodyHtml(n);highlightTags($("editBody"));
     $("editDate").textContent=t("edited")+new Date(n.updated).toLocaleString(locale(),{day:"2-digit",month:"long",hour:"2-digit",minute:"2-digit"});
     updatePin(n);updateLock(n);
+  }
+  // подсветка #тегов прямо в тексте (без вмешательства во время набора)
+  function highlightTags(root){
+    if(!root)return;
+    root.querySelectorAll("span.tag-hl").forEach(s=>{s.replaceWith(document.createTextNode(s.textContent));});
+    root.normalize();
+    const g=/(^|[^\p{L}\p{N}_#])#([\p{L}][\p{L}\p{N}_\-]*)/gu;
+    const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null);
+    const targets=[];let node;
+    while(node=walker.nextNode()){if(node.parentElement&&node.parentElement.closest(".check-box"))continue;g.lastIndex=0;if(g.test(node.nodeValue))targets.push(node);}
+    targets.forEach(tn=>{
+      const s=tn.nodeValue;const frag=document.createDocumentFragment();let last=0;g.lastIndex=0;let m;
+      while(m=g.exec(s)){
+        const start=m.index+m[1].length,end=g.lastIndex;
+        if(start>last)frag.appendChild(document.createTextNode(s.slice(last,start)));
+        const span=document.createElement("span");span.className="tag-hl";span.textContent=s.slice(start,end);
+        frag.appendChild(span);last=end;
+      }
+      if(last<s.length)frag.appendChild(document.createTextNode(s.slice(last)));
+      tn.replaceWith(frag);
+    });
   }
   function updatePin(n){$("pinBtn").style.color=n.pinned?"var(--accent-strong)":"var(--text-2)";$("pinBtn").title=n.pinned?t("unpin"):t("pin");}
   function updateLock(n){$("lockBtn").style.color=n.locked?"var(--accent-strong)":"var(--text-2)";$("lockBtn").title=n.locked?t("lockNow"):t("lock");}
@@ -295,6 +316,7 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
 
   $("editTitle").addEventListener("input",saveActive);
   $("editBody").addEventListener("input",saveActive);
+  $("editBody").addEventListener("blur",()=>{if($("editBody").getAttribute("contenteditable")==="true"){highlightTags($("editBody"));}});
   $("fmtSelect").onchange=e=>{document.execCommand("formatBlock",false,e.target.value);$("editBody").focus();saveActive();};
   document.querySelectorAll(".tool[data-cmd]").forEach(b=>b.onclick=()=>{document.execCommand(b.dataset.cmd,false,null);$("editBody").focus();refreshState();saveActive();});
   $("hlBtn").onclick=()=>{const sel=window.getSelection();if(!sel.rangeCount||sel.isCollapsed){$("editBody").focus();return;}const r=sel.getRangeAt(0);const m=document.createElement("mark");try{m.appendChild(r.extractContents());r.insertNode(m);}catch(e){}$("editBody").focus();saveActive();};

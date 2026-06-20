@@ -175,3 +175,6 @@
   /* Режим одиночного окна (открыть заметку в новом окне) */
   .app.single{grid-template-columns:1fr}
   .app.single .rail,.app.single .sidebar{display:none}
+
+  /* Подсветка #тегов в тексте заметки */
+  .tag-hl{color:var(--accent-strong);font-weight:600}
