@@ -298,10 +298,29 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
 
   $("editTitle").addEventListener("input",saveActive);
   $("editTitle").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("editBody").focus();const sel=window.getSelection();const r=document.createRange();r.selectNodeContents($("editBody"));r.collapse(true);sel.removeAllRanges();sel.addRange(r);}});
-  $("editBody").addEventListener("input",saveActive);
-  // теги красятся, когда заметку не редактируешь; при входе в текст — снимаем (чтобы набор был чистым)
-  $("editBody").addEventListener("focus",()=>unwrapTags($("editBody")));
-  $("editBody").addEventListener("blur",()=>{if($("editBody").getAttribute("contenteditable")==="true")highlightTags($("editBody"));});
+  $("editBody").addEventListener("input",()=>{saveActive();scheduleHighlight();});
+  $("editBody").addEventListener("blur",()=>{clearTimeout(hlTimer);if($("editBody").getAttribute("contenteditable")==="true")highlightTags($("editBody"));});
+  let hlTimer=null;
+  function scheduleHighlight(){clearTimeout(hlTimer);hlTimer=setTimeout(liveHighlight,450);}
+  // подсветить теги, сохранив позицию курсора через невидимый якорь
+  function liveHighlight(){
+    const root=$("editBody");
+    if(root.getAttribute("contenteditable")!=="true")return;
+    if(document.activeElement!==root){highlightTags(root);return;}
+    const sel=window.getSelection();
+    if(!sel.rangeCount){highlightTags(root);return;}
+    const range=sel.getRangeAt(0);
+    if(!range.collapsed){highlightTags(root);return;}
+    const marker=document.createElement("span");marker.setAttribute("data-caret","1");
+    try{range.insertNode(marker);}catch(e){highlightTags(root);return;}
+    highlightTags(root);
+    const mk=root.querySelector('span[data-caret]');
+    if(mk){
+      const r=document.createRange();r.setStartAfter(mk);r.collapse(true);
+      sel.removeAllRanges();sel.addRange(r);
+      mk.remove();root.normalize();
+    }
+  }
   function unwrapTags(root){if(!root)return;root.querySelectorAll("span.tag-hl").forEach(s=>s.replaceWith(document.createTextNode(s.textContent)));root.normalize();}
   function highlightTags(root){
     if(!root)return;
