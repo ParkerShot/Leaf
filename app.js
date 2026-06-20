@@ -297,8 +297,22 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
   $("sortSelect").onchange=e=>{sortBy=e.target.value;renderList();};
 
   $("editTitle").addEventListener("input",saveActive);
-  $("editTitle").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("editBody").focus();const sel=window.getSelection();const r=document.createRange();r.selectNodeContents($("editBody"));r.collapse(true);sel.removeAllRanges();sel.addRange(r);}});
-  $("editBody").addEventListener("input",()=>{saveActive();scheduleHighlight();});
+  $("editTitle").addEventListener("keydown",e=>{
+    if(e.key!=="Enter")return;
+    e.preventDefault();
+    const eb=$("editBody");eb.focus();
+    const sel=window.getSelection();
+    const hasContent=(eb.textContent||"").trim()!==""||eb.querySelector("img,table,ul,ol,blockquote");
+    if(hasContent){
+      const div=document.createElement("div");div.appendChild(document.createElement("br"));
+      eb.insertBefore(div,eb.firstChild);
+      const r=document.createRange();r.setStart(div,0);r.collapse(true);sel.removeAllRanges();sel.addRange(r);
+      saveActive();
+    } else {
+      const r=document.createRange();r.selectNodeContents(eb);r.collapse(true);sel.removeAllRanges();sel.addRange(r);
+    }
+  });
+  $("editBody").addEventListener("input",e=>{saveActive();if(e&&(e.data===" "||e.inputType==="insertParagraph"||e.inputType==="insertLineBreak"))liveHighlight();else scheduleHighlight();});
   $("editBody").addEventListener("blur",()=>{clearTimeout(hlTimer);if($("editBody").getAttribute("contenteditable")==="true")highlightTags($("editBody"));});
   let hlTimer=null;
   function scheduleHighlight(){clearTimeout(hlTimer);hlTimer=setTimeout(liveHighlight,450);}
