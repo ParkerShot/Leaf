@@ -5,5 +5,7 @@ contextBridge.exposeInMainWorld('notesAPI', {
   save: (data) => ipcRenderer.invoke('store:save', data),
   encrypt: (text, pass) => ipcRenderer.invoke('crypto:encrypt', text, pass),
   decrypt: (blob, pass) => ipcRenderer.invoke('crypto:decrypt', blob, pass),
-  exportPdf: (data) => ipcRenderer.invoke('note:exportPdf', data)
+  exportPdf: (data) => ipcRenderer.invoke('note:exportPdf', data),
+  openNoteWindow: (id) => ipcRenderer.invoke('window:openNote', id),
+  onStoreChanged: (cb) => ipcRenderer.on('store:changed', () => cb())
 });

@@ -50,11 +50,11 @@ function decrypt(blob, password) {
   }
 }
 
-function createWindow() {
+function createWindow(focusId) {
   const win = new BrowserWindow({
-    width: 1080,
-    height: 720,
-    minWidth: 720,
+    width: focusId ? 720 : 1080,
+    height: focusId ? 640 : 720,
+    minWidth: focusId ? 420 : 720,
     minHeight: 460,
     backgroundColor: '#f2f2f7',
     title: 'Leaf',
@@ -66,11 +66,21 @@ function createWindow() {
     }
   });
   win.setMenuBarVisibility(false);
-  win.loadFile('index.html');
+  win.loadFile('index.html', focusId ? { query: { focus: String(focusId) } } : undefined);
+}
+
+// открыть отдельную заметку в новом окне
+ipcMain.handle('window:openNote', (e, id) => { createWindow(id); return true; });
+
+// разослать остальным окнам сигнал, что данные на диске изменились
+function broadcastChange(senderWebContents) {
+  for (const w of BrowserWindow.getAllWindows()) {
+    if (w.webContents !== senderWebContents) w.webContents.send('store:changed');
+  }
 }
 
 ipcMain.handle('store:load', () => loadStore());
-ipcMain.handle('store:save', (e, data) => saveStore(data));
+ipcMain.handle('store:save', (e, data) => { const ok = saveStore(data); broadcastChange(e.sender); return ok; });
 ipcMain.handle('crypto:encrypt', (e, text, pass) => encrypt(text, pass));
 ipcMain.handle('crypto:decrypt', (e, blob, pass) => decrypt(blob, pass));
 

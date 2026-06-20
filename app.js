@@ -8,7 +8,9 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
     _m:null, load:async()=>API._m, save:async(d)=>{API._m=d;return true;},
     encrypt:async(t)=>"demo:"+btoa(unescape(encodeURIComponent(t))),
     decrypt:async(b)=>{try{return{ok:true,text:decodeURIComponent(escape(atob(b.replace("demo:",""))))}}catch(e){return{ok:false}}},
-    exportPdf:async()=>{window.print();return{ok:true};}
+    exportPdf:async()=>{window.print();return{ok:true};},
+    openNoteWindow:()=>{},
+    onStoreChanged:()=>{}
   };
 
   const DICT={
@@ -32,7 +34,7 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
       deleteForeverTitle:"Удалить навсегда?",deleteForeverMsg:"Это действие нельзя отменить.",deleteOk:"Удалить",
       welcomeTitle:"Добро пожаловать 👋",welcomeBody:"Это ваши заметки. Они сохраняются на этом компьютере автоматически.<br><br>Создайте новую заметку кнопкой-карандашом справа сверху.",
       rename:"Переименовать",renameFolderTitle:"Переименовать папку",deleteFolderMenu:"Удалить папку",deleteFolderTitle:"Удалить папку?",deleteFolderMsg:"Заметки из неё попадут в «Недавно удалённые».",ctxDelete:"Удалить",
-      duplicate:"Дублировать",exportPdf:"Экспорт в PDF",lockNow:"Заблокировать сейчас",removePass:"Снять пароль",folderLockedTitle:"В папке есть защищённые заметки",folderLockedMsg:"Сначала снимите с них пароль или переместите их в другую папку.",tags:"Теги",newSmartFolder:"Создать умную папку",
+      duplicate:"Дублировать",exportPdf:"Экспорт в PDF",lockNow:"Заблокировать сейчас",removePass:"Снять пароль",folderLockedTitle:"В папке есть защищённые заметки",folderLockedMsg:"Сначала снимите с них пароль или переместите их в другую папку.",tags:"Теги",newSmartFolder:"Создать умную папку",openWindow:"Открыть в новом окне",
       defPersonal:"Личное",defWork:"Работа"},
     en:{folders:"Folders",allNotes:"All Notes",recentlyDeleted:"Recently Deleted",search:"Search",
       sortUpdated:"Date Edited",sortCreated:"Date Created",sortTitle:"Title",
@@ -54,7 +56,7 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
       deleteForeverTitle:"Delete Forever?",deleteForeverMsg:"This action cannot be undone.",deleteOk:"Delete",
       welcomeTitle:"Welcome 👋",welcomeBody:"These are your notes. They are saved on this computer automatically.<br><br>Create a new note using the pencil button at the top right.",
       rename:"Rename",renameFolderTitle:"Rename Folder",deleteFolderMenu:"Delete Folder",deleteFolderTitle:"Delete Folder?",deleteFolderMsg:"Its notes will be moved to Recently Deleted.",ctxDelete:"Delete",
-      duplicate:"Duplicate",exportPdf:"Export to PDF",lockNow:"Lock Now",removePass:"Remove Password",folderLockedTitle:"This folder has protected notes",folderLockedMsg:"Remove their password or move them to another folder first.",tags:"Tags",newSmartFolder:"New Smart Folder",
+      duplicate:"Duplicate",exportPdf:"Export to PDF",lockNow:"Lock Now",removePass:"Remove Password",folderLockedTitle:"This folder has protected notes",folderLockedMsg:"Remove their password or move them to another folder first.",tags:"Tags",newSmartFolder:"New Smart Folder",openWindow:"Open in New Window",
       defPersonal:"Personal",defWork:"Work"}
   };
   let lang="ru";
@@ -162,6 +164,25 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
     }
     document.documentElement.setAttribute("data-theme",theme);
     applyI18n(); renderFolders(); renderList();
+    // открытие одной заметки в отдельном окне (?focus=id)
+    const focusId=new URLSearchParams(location.search).get("focus");
+    if(focusId){document.querySelector(".app").classList.add("single");const fid=Number(focusId);if(notes.some(n=>n.id===fid))selectNote(fid);}
+    // подхватываем изменения из других окон
+    API.onStoreChanged(reloadFromDisk);
+  }
+  async function reloadFromDisk(){
+    const saved=await API.load();if(!saved||!saved.notes)return;
+    const editing=document.activeElement===$("editBody")||document.activeElement===$("editTitle");
+    folders=saved.folders||folders;
+    if(editing&&activeId!=null){
+      const mine=notes.find(n=>n.id===activeId);
+      notes=saved.notes.map(n=>n.id===activeId&&mine?mine:n);
+      if(mine&&!saved.notes.some(n=>n.id===activeId))notes.push(mine);
+    } else {
+      notes=saved.notes;
+    }
+    renderFolders();renderList();
+    if(!editing&&activeId!=null){const n=notes.find(x=>x.id===activeId);if(n&&!n.deleted&&!(n.locked&&!sessionPass.has(n.id))){$("editTitle").value=n.title;$("editBody").innerHTML=bodyHtml(n);}}
   }
 
   let saveTimer=null;
@@ -404,6 +425,7 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
         {label:t("duplicate"),action:()=>{const c=JSON.parse(JSON.stringify(n));c.id=Date.now();c.pinned=false;c.created=Date.now();c.updated=Date.now();c.deleted=false;notes.unshift(c);renderFolders();renderList();persist();}},
         {label:t("move"),action:async()=>{const opts=folders.filter(f=>!f.system).map(f=>({id:f.id,label:f.name}));const fid=await dlgPick({title:t("movePickTitle"),options:opts});if(fid){n.folder=fid;renderFolders();renderList();persist();}}},
         {label:t("exportPdf"),action:async()=>{let html=n.locked?(sessionText.get(n.id)||""):n.html;if(n.locked&&!sessionText.has(n.id)){selectNote(n.id);return;}await API.exportPdf({title:n.title||t("newNoteTitle"),html});}},
+        {label:t("openWindow"),action:()=>API.openNoteWindow(n.id)},
         {sep:true},
         {label:t("ctxDelete"),danger:true,action:()=>trashNote(n)}
       ];
