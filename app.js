@@ -315,30 +315,28 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
   $("sortSelect").onchange=e=>{sortBy=e.target.value;renderList();};
 
   $("editTitle").addEventListener("input",saveActive);
-  $("editBody").addEventListener("input",onBodyInput);
+  $("editBody").addEventListener("input",e=>{if(e&&e.inputType==="insertText"&&e.data===" ")wrapTagBeforeCaret();saveActive();});
+  $("editBody").addEventListener("blur",()=>{if($("editBody").getAttribute("contenteditable")==="true")highlightTags($("editBody"));});
   // клик по #тегу в тексте — переход к фильтру по этому тегу (как у Apple)
   $("editBody").addEventListener("click",e=>{const sp=e.target.closest&&e.target.closest(".tag-hl");if(sp){e.preventDefault();const tag=sp.textContent.replace(/^#/,"");activeFolder="tag:"+tag.toLowerCase();activeId=null;closeAll();renderFolders();renderList();refreshTitle();}});
-  function onBodyInput(){
-    const off=caretOffset($("editBody"));
-    highlightTags($("editBody"));
-    if(off!=null)restoreCaret($("editBody"),off);
-    saveActive();
-  }
-  // позиция курсора как смещение по тексту (чтобы восстановить после перерисовки тегов)
-  function caretOffset(root){
-    const sel=window.getSelection();if(!sel||!sel.rangeCount)return null;
-    const r=sel.getRangeAt(0);const pre=r.cloneRange();
-    try{pre.selectNodeContents(root);pre.setEnd(r.endContainer,r.endOffset);}catch(e){return null;}
-    return pre.toString().length;
-  }
-  function restoreCaret(root,offset){
-    const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null);
-    let node,count=0;
-    while(node=walker.nextNode()){
-      const len=node.nodeValue.length;
-      if(count+len>=offset){const sel=window.getSelection();const r=document.createRange();r.setStart(node,Math.max(0,offset-count));r.collapse(true);sel.removeAllRanges();sel.addRange(r);return;}
-      count+=len;
-    }
+  // подсветить тег, который только что завершили пробелом — точечно, не трогая остальной текст
+  function wrapTagBeforeCaret(){
+    const sel=window.getSelection();if(!sel.rangeCount||!sel.isCollapsed)return;
+    const r=sel.getRangeAt(0);const node=r.startContainer;
+    if(node.nodeType!==3)return;
+    if(node.parentElement&&node.parentElement.classList.contains("tag-hl"))return;
+    const caret=r.startOffset;
+    const before=node.nodeValue.slice(0,caret);
+    const m=/(^|[^\p{L}\p{N}_#])#([\p{L}][\p{L}\p{N}_\-]*)(\s)$/u.exec(before);
+    if(!m)return;
+    const tagStart=m.index+m[1].length;
+    const tagEnd=tagStart+1+m[2].length;
+    const rest=node.splitText(tagStart);
+    const space=rest.splitText(tagEnd-tagStart);
+    const span=document.createElement("span");span.className="tag-hl";span.textContent=rest.nodeValue;
+    rest.replaceWith(span);
+    const rr=document.createRange();rr.setStart(space,Math.max(0,caret-tagEnd));rr.collapse(true);
+    sel.removeAllRanges();sel.addRange(rr);
   }
   $("fmtSelect").onchange=e=>{document.execCommand("formatBlock",false,e.target.value);$("editBody").focus();saveActive();};
   document.querySelectorAll(".tool[data-cmd]").forEach(b=>b.onclick=()=>{document.execCommand(b.dataset.cmd,false,null);$("editBody").focus();refreshState();saveActive();});
