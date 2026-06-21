@@ -291,7 +291,7 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
   }
 
   $("langBtn").onclick=()=>{lang=lang==="ru"?"en":"ru";applyI18n();renderFolders();renderList();persist();};
-  $("newBtn").onclick=newNote;
+  $("newBtn").onclick=()=>newNote();
   $("newFolderBtn").onclick=async()=>{const name=await dlgInput({title:t("newFolderTitle"),placeholder:t("folderNamePh"),ok:t("create")});if(name&&name.trim()){folders.push({id:"f"+Date.now(),name:name.trim()});renderFolders();persist();}};
   $("searchInput").oninput=e=>{query=e.target.value;renderList();};
   $("sortSelect").onchange=e=>{sortBy=e.target.value;renderList();};
