@@ -34,7 +34,7 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
       deleteForeverTitle:"Удалить навсегда?",deleteForeverMsg:"Это действие нельзя отменить.",deleteOk:"Удалить",
       welcomeTitle:"Добро пожаловать 👋",welcomeBody:"Это ваши заметки. Они сохраняются на этом компьютере автоматически.<br><br>Создайте новую заметку кнопкой-карандашом справа сверху.",
       rename:"Переименовать",renameFolderTitle:"Переименовать папку",deleteFolderMenu:"Удалить папку",deleteFolderTitle:"Удалить папку?",deleteFolderMsg:"Заметки из неё попадут в «Недавно удалённые».",ctxDelete:"Удалить",
-      duplicate:"Дублировать",exportPdf:"Экспорт в PDF",lockNow:"Заблокировать сейчас",removePass:"Снять пароль",folderLockedTitle:"В папке есть защищённые заметки",folderLockedMsg:"Сначала снимите с них пароль или переместите их в другую папку.",tags:"Теги",newSmartFolder:"Создать умную папку",openWindow:"Открыть в новом окне",
+      duplicate:"Дублировать",exportPdf:"Экспорт в PDF",lockNow:"Заблокировать сейчас",removePass:"Снять пароль",folderLockedTitle:"В папке есть защищённые заметки",folderLockedMsg:"Сначала снимите с них пароль или переместите их в другую папку.",tags:"Теги",newSmartFolder:"Создать умную папку",openWindow:"Открыть в новом окне",deleteSelected:"Удалить выбранные",moveSelected:"Переместить выбранные",selectedCount:"Выбрано",
       defPersonal:"Личное",defWork:"Работа"},
     en:{folders:"Folders",allNotes:"All Notes",recentlyDeleted:"Recently Deleted",search:"Search",
       sortUpdated:"Date Edited",sortCreated:"Date Created",sortTitle:"Title",
@@ -56,7 +56,7 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
       deleteForeverTitle:"Delete Forever?",deleteForeverMsg:"This action cannot be undone.",deleteOk:"Delete",
       welcomeTitle:"Welcome 👋",welcomeBody:"These are your notes. They are saved on this computer automatically.<br><br>Create a new note using the pencil button at the top right.",
       rename:"Rename",renameFolderTitle:"Rename Folder",deleteFolderMenu:"Delete Folder",deleteFolderTitle:"Delete Folder?",deleteFolderMsg:"Its notes will be moved to Recently Deleted.",ctxDelete:"Delete",
-      duplicate:"Duplicate",exportPdf:"Export to PDF",lockNow:"Lock Now",removePass:"Remove Password",folderLockedTitle:"This folder has protected notes",folderLockedMsg:"Remove their password or move them to another folder first.",tags:"Tags",newSmartFolder:"New Smart Folder",openWindow:"Open in New Window",
+      duplicate:"Duplicate",exportPdf:"Export to PDF",lockNow:"Lock Now",removePass:"Remove Password",folderLockedTitle:"This folder has protected notes",folderLockedMsg:"Remove their password or move them to another folder first.",tags:"Tags",newSmartFolder:"New Smart Folder",openWindow:"Open in New Window",deleteSelected:"Delete Selected",moveSelected:"Move Selected",selectedCount:"Selected",
       defPersonal:"Personal",defWork:"Work"}
   };
   let lang="ru";
@@ -149,6 +149,7 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
 
   let folders=[], notes=[], theme="light";
   let activeId=null, activeFolder="all", query="", sortBy="updated";
+  let selected=new Set(), lastSel=null;
   const sessionPass=new Map(), sessionText=new Map();
 
   function defaultFolders(){return [{id:"all",system:true},{id:"f1",name:t("defPersonal")},{id:"f2",name:t("defWork")}];}
@@ -211,11 +212,11 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
     $("folderList").innerHTML=html;
     $("folderList").querySelectorAll(".folder").forEach(d=>{
       if(d.dataset.tag!==undefined){
-        d.onclick=()=>{activeFolder="tag:"+d.dataset.tag.toLowerCase();activeId=null;closeAll();renderFolders();renderList();refreshTitle();};
+        d.onclick=()=>{activeFolder="tag:"+d.dataset.tag.toLowerCase();selected.clear();activeId=null;closeAll();renderFolders();renderList();refreshTitle();};
         d.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();tagContextMenu(d.dataset.tag,e.clientX,e.clientY);};
         return;
       }
-      d.onclick=()=>{activeFolder=d.dataset.id;activeId=null;closeAll();renderFolders();renderList();refreshTitle();};
+      d.onclick=()=>{activeFolder=d.dataset.id;selected.clear();activeId=null;closeAll();renderFolders();renderList();refreshTitle();};
       const f=folders.find(x=>x.id===d.dataset.id);
       if(d.dataset.id!=="trash"&&f&&!f.system){d.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();folderContextMenu(f,e.clientX,e.clientY);};}
     });
@@ -242,10 +243,10 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
       return b.updated-a.updated;
     });
     if(!items.length){$("noteList").innerHTML='<div class="empty-list">'+(activeFolder==="trash"?t("trashEmpty"):t("noNotes"))+'</div>';return;}
-    const cell=n=>`<div class="note-cell ${n.id===activeId?"active":""}" data-id="${n.id}">
-      ${n.pinned&&!n.deleted?'<svg class="pin" viewBox="0 0 24 24" fill="currentColor"><path d="M16 3l5 5-4 1-4 4-1 5-2-2-4 4-1-1 4-4-2-2 5-1 4-4z"/></svg>':""}
-      <div class="nc-title">${n.locked?'<svg class="lock-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>':""}<span>${esc(n.title)||t("newNoteTitle")}</span></div>
-      <div class="nc-meta"><span class="nc-date">${fmtDate(n.updated)}</span>&nbsp;&nbsp;${n.locked?t("noteLockedMeta"):esc(snip(n.html))}</div></div>`;
+    const cell=n=>`<div class="note-cell ${n.id===activeId?"active":""} ${selected.has(n.id)?"sel":""}" data-id="${n.id}">`+
+      `${n.pinned&&!n.deleted?'<svg class="pin" viewBox="0 0 24 24" fill="currentColor"><path d="M16 3l5 5-4 1-4 4-1 5-2-2-4 4-1-1 4-4-2-2 5-1 4-4z"/></svg>':""}`+
+      `<div class="nc-title">${n.locked?'<svg class="lock-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>':""}<span>${esc(n.title)||t("newNoteTitle")}</span></div>`+
+      `<div class="nc-meta"><span class="nc-date">${fmtDate(n.updated)}</span>&nbsp;&nbsp;${n.locked?t("noteLockedMeta"):esc(snip(n.html))}</div></div>`;
     let html="";
     if(activeFolder!=="trash"){
       const pin=items.filter(n=>n.pinned),oth=items.filter(n=>!n.pinned);
@@ -253,7 +254,15 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
       html+=oth.map(cell).join("");
     } else html=items.map(cell).join("");
     $("noteList").innerHTML=html;
-    $("noteList").querySelectorAll(".note-cell").forEach(el=>{el.onclick=()=>selectNote(Number(el.dataset.id));el.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();noteContextMenu(Number(el.dataset.id),e.clientX,e.clientY);};});
+    $("noteList").querySelectorAll(".note-cell").forEach(el=>{
+      el.onclick=e=>{
+        const id=Number(el.dataset.id);
+        if(e.ctrlKey||e.metaKey){if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();if(selected.has(id))selected.delete(id);else selected.add(id);lastSel=id;renderList();return;}
+        if(e.shiftKey&&lastSel!=null){if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();const ids=[...$("noteList").querySelectorAll(".note-cell")].map(c=>Number(c.dataset.id));let i=ids.indexOf(lastSel),j=ids.indexOf(id);if(i>=0&&j>=0){if(i>j)[i,j]=[j,i];selected.clear();for(let k=i;k<=j;k++)selected.add(ids[k]);}renderList();return;}
+        selected.clear();lastSel=id;selectNote(id);
+      };
+      el.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();const id=Number(el.dataset.id);if(selected.size>1&&selected.has(id)){multiContextMenu(e.clientX,e.clientY);}else{selected.clear();noteContextMenu(id,e.clientX,e.clientY);}};
+    });
   }
 
   function esc(s){return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
@@ -376,14 +385,23 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
       if(!ul.querySelector(".check-item"))ul.remove();
       caret(d);
     } else {
-      document.execCommand("insertHTML",false,'<ul class="checklist"><li class="check-item"><span class="check-box">'+checkSVG+'</span><span class="check-text" contenteditable="true">&#8203;</span></li></ul>');
-      const texts=$("editBody").querySelectorAll(".check-text");
-      if(texts.length)caret(texts[texts.length-1]);
+      // превращаем ТЕКУЩУЮ строку в пункт чек-листа (текст остаётся на месте)
+      let node=sel.anchorNode;const eb=$("editBody");
+      let block=node;
+      if(block&&block!==eb){let el=block.nodeType===3?block.parentNode:block;while(el&&el.parentNode&&el.parentNode!==eb)el=el.parentNode;block=(el&&el.parentNode===eb)?el:null;}else block=null;
+      let content="";
+      if(block)content=block.nodeType===3?esc(block.textContent):block.innerHTML;
+      if(!content||!content.replace(/[\u200b\s]|<br\s*\/?>/gi,""))content="&#8203;";
+      const ul=document.createElement("ul");ul.className="checklist";
+      ul.innerHTML='<li class="check-item"><span class="check-box">'+checkSVG+'</span><span class="check-text" contenteditable="true">'+content+'</span></li>';
+      if(block&&block.parentNode){block.parentNode.replaceChild(ul,block);caret(ul.querySelector(".check-text"));}
+      else{document.execCommand("insertHTML",false,ul.outerHTML);const texts=$("editBody").querySelectorAll(".check-text");if(texts.length)caret(texts[texts.length-1]);}
     }
     $("editBody").focus();saveActive();
   };
   $("editBody").addEventListener("click",e=>{const box=e.target.closest(".check-box");if(box){box.closest(".check-item").classList.toggle("done");saveActive();}});
   $("editBody").addEventListener("keydown",e=>{
+    if(e.key==="Tab"){e.preventDefault();document.execCommand(e.shiftKey?"outdent":"indent",false,null);saveActive();return;}
     if(e.key==="Enter"){const sel=window.getSelection();const item=sel.anchorNode&&sel.anchorNode.parentElement?sel.anchorNode.parentElement.closest(".check-item"):null;
       if(item){e.preventDefault();const txt=item.querySelector(".check-text");
         if(txt.textContent.replace(/\u200b/g,"").trim()===""){const ul=item.closest(".checklist");const d=document.createElement("div");d.innerHTML="<br>";ul.after(d);item.remove();caret(d);}
@@ -469,6 +487,19 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
     ctxEl=m;
   }
 
+  function multiContextMenu(x,y){
+    const ids=[...selected];
+    showCtx(x,y,[
+      {label:t("moveSelected")+" ("+ids.length+")",action:async()=>{const opts=folders.filter(f=>!f.system).map(f=>({id:f.id,label:f.name}));const fid=await dlgPick({title:t("movePickTitle"),options:opts});if(fid){ids.forEach(id=>{const n=notes.find(z=>z.id===id);if(n&&!n.deleted)n.folder=fid;});selected.clear();renderFolders();renderList();persist();}}},
+      {sep:true},
+      {label:t("deleteSelected")+" ("+ids.length+")",danger:true,action:()=>deleteSelected()}
+    ]);
+  }
+  function deleteSelected(){
+    [...selected].forEach(id=>{const n=notes.find(z=>z.id===id);if(!n)return;if(n.deleted){notes=notes.filter(z=>z.id!==id);}else if(!(n.locked&&!sessionPass.has(n.id))){n.deleted=true;n.deletedAt=Date.now();}});
+    selected.clear();activeId=null;closeAll();renderFolders();renderList();persist();
+  }
+
   function noteContextMenu(id,x,y){
     const n=notes.find(z=>z.id===id); if(!n)return;
     selectNote(id);
@@ -517,6 +548,7 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
     if(ctxEl||document.querySelector(".modal-backdrop"))return;
     const ae=document.activeElement;
     if(ae&&(ae.isContentEditable||ae.tagName==="INPUT"||ae.tagName==="TEXTAREA"))return;
+    if(selected.size>0){deleteSelected();return;}
     if(activeId==null)return;
     const n=notes.find(x=>x.id===activeId); if(!n)return;
     if(n.deleted)$("purgeBtn").click(); else trashNote(n);

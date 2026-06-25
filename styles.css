@@ -67,7 +67,8 @@
   .note-cell.active{background:var(--row-active)}
   .note-cell .nc-title{font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px;display:flex;align-items:center;gap:5px}
   .note-cell.active .nc-title{color:#1c1c1e}
-  html[data-theme="dark"] .note-cell.active .nc-title,html[data-theme="dark"] .note-cell.active .nc-meta,html[data-theme="dark"] .note-cell.active .nc-meta .nc-date{color:#1c1c1e}
+  html[data-theme="dark"] .note-cell.active .nc-title,html[data-theme="dark"] .note-cell.active .nc-meta .nc-date{color:#fff}
+  html[data-theme="dark"] .note-cell.active .nc-meta{color:rgba(255,255,255,.7)}
   .note-cell .nc-meta{font-size:13px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .note-cell.active .nc-meta{color:rgba(28,28,30,.65)}
   .note-cell .nc-meta .nc-date{color:var(--text)}
@@ -178,3 +179,7 @@
 
   /* Подсветка #тегов в тексте заметки */
   .tag-hl{color:var(--accent-strong);font-weight:600}
+
+  /* Выбранные заметки (множественный выбор) */
+  .note-cell.sel{background:var(--rail-active)}
+  .note-cell.sel .nc-title{color:var(--accent-strong)}
