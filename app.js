@@ -10,7 +10,11 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
     decrypt:async(b)=>{try{return{ok:true,text:decodeURIComponent(escape(atob(b.replace("demo:",""))))}}catch(e){return{ok:false}}},
     exportPdf:async()=>{window.print();return{ok:true};},
     openNoteWindow:()=>{},
-    onStoreChanged:()=>{}
+    onStoreChanged:()=>{},
+    updateCheck:async()=>({state:"none"}),
+    updateDownload:async()=>true,
+    updateInstall:async()=>true,
+    onUpdateStatus:()=>{}
   };
 
   const DICT={
@@ -35,7 +39,8 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
       welcomeTitle:"Добро пожаловать 👋",welcomeBody:"Это ваши заметки. Они сохраняются на этом компьютере автоматически.<br><br>Создайте новую заметку кнопкой-карандашом справа сверху.",
       rename:"Переименовать",renameFolderTitle:"Переименовать папку",deleteFolderMenu:"Удалить папку",deleteFolderTitle:"Удалить папку?",deleteFolderMsg:"Заметки из неё попадут в «Недавно удалённые».",ctxDelete:"Удалить",
       duplicate:"Дублировать",exportPdf:"Экспорт в PDF",lockNow:"Заблокировать сейчас",removePass:"Снять пароль",folderLockedTitle:"В папке есть защищённые заметки",folderLockedMsg:"Сначала снимите с них пароль или переместите их в другую папку.",tags:"Теги",newSmartFolder:"Создать умную папку",openWindow:"Открыть в новом окне",deleteSelected:"Удалить выбранные",moveSelected:"Переместить выбранные",selectedCount:"Выбрано",
-      defPersonal:"Личное",defWork:"Работа"},
+      defPersonal:"Личное",defWork:"Работа",
+      updateAvailable:"Обновить",updateDownloading:"Загрузка",updateInstalling:"Установка"},
     en:{folders:"Folders",allNotes:"All Notes",recentlyDeleted:"Recently Deleted",search:"Search",
       sortUpdated:"Date Edited",sortCreated:"Date Created",sortTitle:"Title",
       pinned:"Pinned",notes:"Notes",noNotes:"No notes yet",trashEmpty:"Trash is empty",
@@ -57,7 +62,8 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
       welcomeTitle:"Welcome 👋",welcomeBody:"These are your notes. They are saved on this computer automatically.<br><br>Create a new note using the pencil button at the top right.",
       rename:"Rename",renameFolderTitle:"Rename Folder",deleteFolderMenu:"Delete Folder",deleteFolderTitle:"Delete Folder?",deleteFolderMsg:"Its notes will be moved to Recently Deleted.",ctxDelete:"Delete",
       duplicate:"Duplicate",exportPdf:"Export to PDF",lockNow:"Lock Now",removePass:"Remove Password",folderLockedTitle:"This folder has protected notes",folderLockedMsg:"Remove their password or move them to another folder first.",tags:"Tags",newSmartFolder:"New Smart Folder",openWindow:"Open in New Window",deleteSelected:"Delete Selected",moveSelected:"Move Selected",selectedCount:"Selected",
-      defPersonal:"Personal",defWork:"Work"}
+      defPersonal:"Personal",defWork:"Work",
+      updateAvailable:"Update",updateDownloading:"Downloading",updateInstalling:"Installing"}
   };
   let lang="ru";
   const t=k=>DICT[lang][k]||k;
@@ -120,6 +126,7 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
     const fo=$("fmtSelect").options;fo[0].text=t("styleText");fo[1].text=t("styleTitle");fo[2].text=t("styleHeading");fo[3].text=t("styleMono");fo[4].text=t("styleQuote");
     refreshTitle();
     const n=notes.find(x=>x.id===activeId); if(n){updatePin(n);updateLock(n);}
+    if(window._updaterRefresh)window._updaterRefresh();
   }
   function refreshTitle(){
     let txt;
@@ -300,6 +307,41 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
   }
 
   $("langBtn").onclick=()=>{lang=lang==="ru"?"en":"ru";applyI18n();renderFolders();renderList();persist();};
+
+  // ---- Принудительная запись на диск (перед перезапуском на обновление) ----
+  async function flushSave(){clearTimeout(saveTimer);try{await API.save({folders,notes,theme,lang});}catch(e){}}
+
+  // ---- Индикатор обновления у кнопки языка ----
+  (function setupUpdater(){
+    const btn=$("updateBtn"); if(!btn) return;
+    let state="none";      // none | available | downloading | ready | error
+    let pending=false;     // true только в окне, где пользователь нажал «обновить»
+    function setTitle(extra){
+      if(state==="downloading"){btn.title=extra||t("updateDownloading");return;}
+      btn.title=t(state==="ready"?"updateInstalling":"updateAvailable");
+    }
+    function apply(){
+      btn.classList.toggle("show",state!=="none");
+      btn.classList.toggle("busy",state==="downloading"||state==="ready");
+      setTitle();
+    }
+    window._updaterRefresh=apply;   // обновлять подпись при смене языка
+    async function onStatus(s){
+      if(!s) return;
+      if(s.state==="error"){state=state==="none"?"none":"available";pending=false;apply();return;}
+      state=s.state;
+      if(state==="ready"&&pending){await flushSave();try{await API.updateInstall();}catch(e){}}
+      apply();
+      if(state==="downloading")setTitle(Math.round(s.percent||0)+"%");
+    }
+    if(API.onUpdateStatus)API.onUpdateStatus(onStatus);
+    btn.onclick=async()=>{
+      if(state!=="available")return;
+      pending=true;state="downloading";apply();
+      try{await API.updateDownload();}catch(e){state="available";pending=false;apply();}
+    };
+    (async()=>{try{const s=await API.updateCheck();if(s)onStatus(s);}catch(e){}})();
+  })();
   $("newBtn").onclick=()=>newNote();
   $("newFolderBtn").onclick=async()=>{const name=await dlgInput({title:t("newFolderTitle"),placeholder:t("folderNamePh"),ok:t("create")});if(name&&name.trim()){folders.push({id:"f"+Date.now(),name:name.trim()});renderFolders();persist();}};
   $("searchInput").oninput=e=>{query=e.target.value;renderList();};

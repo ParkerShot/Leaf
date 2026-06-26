@@ -37,6 +37,16 @@
   .rail-foot{padding:8px 4px 2px;margin-top:6px;border-top:1px solid var(--sep);display:flex;align-items:center;gap:4px}
   .lang-btn{border:none;background:transparent;color:var(--text-2);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;border-radius:7px;padding:6px 9px;letter-spacing:.4px;transition:background .12s}
   .lang-btn:hover{background:var(--tool-hover);color:var(--text)}
+  .update-btn{border:none;background:transparent;color:var(--accent-strong);width:28px;height:28px;border-radius:50%;display:none;place-items:center;cursor:pointer;position:relative;flex-shrink:0;transition:background .15s}
+  .update-btn.show{display:grid;animation:upPulse 2.4s ease-in-out infinite}
+  .update-btn:hover{background:var(--tool-hover)}
+  .update-btn svg{width:16px;height:16px}
+  .update-btn.busy{cursor:default;animation:none}
+  .update-btn.busy:hover{background:transparent}
+  .update-btn.busy svg{display:none}
+  .update-btn.busy::after{content:"";width:15px;height:15px;border:2px solid var(--accent-strong);border-top-color:transparent;border-radius:50%;animation:upSpin .7s linear infinite}
+  @keyframes upSpin{to{transform:rotate(360deg)}}
+  @keyframes upPulse{0%,100%{opacity:.5}50%{opacity:1}}
   .folder{display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:8px;cursor:pointer;font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;transition:background .12s}
   .folder:hover{background:var(--tool-hover)}
   .folder.active{background:var(--rail-active)}

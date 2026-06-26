@@ -3,14 +3,28 @@
   "version": "1.5.0",
   "description": "Leaf — минималистичные заметки",
   "main": "main.js",
-  "author": "Me",
+  "author": {
+    "name": "ParkerShot",
+    "url": "https://github.com/ParkerShot"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/ParkerShot/Leaf",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ParkerShot/Leaf.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ParkerShot/Leaf/issues"
+  },
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --win"
+    "build": "electron-builder --win",
+    "release": "electron-builder --win --publish always"
   },
   "build": {
     "appId": "com.leaf.app",
     "productName": "Leaf",
+    "copyright": "Copyright © 2026 ParkerShot",
     "win": {
       "target": "nsis",
       "icon": "icon.ico"
@@ -21,6 +35,13 @@
       "createDesktopShortcut": true,
       "deleteAppDataOnUninstall": false
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "ParkerShot",
+        "repo": "Leaf"
+      }
+    ],
     "files": [
       "main.js",
       "preload.js",
@@ -30,6 +51,9 @@
       "icon.ico",
       "fonts/**/*"
     ]
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
   },
   "devDependencies": {
     "electron": "^31.0.0",

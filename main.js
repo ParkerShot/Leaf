@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -150,9 +151,47 @@ ipcMain.handle('note:exportPdf', async (e, { title, html }) => {
   }
 });
 
+// ---- Автообновление (electron-updater + GitHub Releases) ----
+// Скачиваем не автоматически, а по клику пользователя на значок.
+let lastUpdateStatus = { state: 'none' };
+let installing = false;
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = true;
+
+function broadcastUpdate(status) {
+  lastUpdateStatus = status;
+  for (const w of BrowserWindow.getAllWindows()) {
+    try { w.webContents.send('updater:status', status); } catch (e) {}
+  }
+}
+
+autoUpdater.on('update-available', (info) => broadcastUpdate({ state: 'available', version: info && info.version }));
+autoUpdater.on('update-not-available', () => broadcastUpdate({ state: 'none' }));
+autoUpdater.on('download-progress', (p) => broadcastUpdate({ state: 'downloading', percent: p && p.percent }));
+autoUpdater.on('update-downloaded', (info) => broadcastUpdate({ state: 'ready', version: info && info.version }));
+autoUpdater.on('error', (err) => { console.error('Updater error:', err); broadcastUpdate({ state: 'error' }); });
+
+// renderer спрашивает текущий статус (в т.ч. при открытии нового окна)
+ipcMain.handle('updater:check', async () => {
+  if (!app.isPackaged) return { state: 'none' };          // в dev (npm start) обновлений нет
+  if (lastUpdateStatus.state !== 'none') return lastUpdateStatus;
+  try { autoUpdater.checkForUpdates(); } catch (e) {}       // нет сети/конфига — молча
+  return lastUpdateStatus;
+});
+// начать фоновое скачивание
+ipcMain.handle('updater:download', () => { try { autoUpdater.downloadUpdate(); } catch (e) {} return true; });
+// тихо установить и перезапуститься
+ipcMain.handle('updater:install', () => {
+  if (installing) return true;
+  installing = true;
+  setImmediate(() => { try { autoUpdater.quitAndInstall(true, true); } catch (e) { installing = false; } });
+  return true;
+});
+
 app.whenReady().then(() => {
   migrateIfNeeded();
   createWindow();
+  if (app.isPackaged) { try { autoUpdater.checkForUpdates(); } catch (e) {} }
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
