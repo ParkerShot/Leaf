@@ -330,7 +330,15 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
       if(!s) return;
       if(s.state==="error"){state=state==="none"?"none":"available";pending=false;apply();return;}
       state=s.state;
-      if(state==="ready"&&pending){await flushSave();try{await API.updateInstall();}catch(e){}}
+      if(state==="ready"&&pending){
+        await flushSave();
+        // плавное затухание окна перед перезапуском (~500мс)
+        document.body.style.transition="opacity .5s ease, transform .5s ease";
+        document.body.style.transformOrigin="center";
+        document.body.style.opacity="0";
+        document.body.style.transform="scale(.97)";
+        setTimeout(()=>{try{API.updateInstall();}catch(e){}},520);
+      }
       apply();
       if(state==="downloading")setTitle(Math.round(s.percent||0)+"%");
     }
