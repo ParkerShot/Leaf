@@ -1,10 +1,12 @@
 # Leaf
 
-**[🇷🇺 Русский](#-leaf--заметки-для-windows) · [🇬🇧 English](#-leaf--notes-app-for-windows)**
+[RU](#leaf--заметки-для-windows) · [EN](#leaf--notes-for-windows)
+
+`v1.5.0`
 
 ---
 
-## 🇷🇺 Leaf — заметки для Windows
+## Leaf — заметки для Windows
 
 Минималистичные заметки: папки и умные папки, теги (#), поиск, закреплённые,
 чек-листы, таблицы, картинки, форматирование, корзина, блокировка паролем
@@ -47,70 +49,57 @@ npm run build
 Появится папка `dist` с файлом `Leaf Setup 1.5.0.exe`.
 
 #### Если сборка падает на скачивании (таймаут GitHub)
-Перед сборкой задайте зеркало в том же окне:
 ```
 set ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
 set ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/
 ```
 
 #### Если ошибка «Cannot create symbolic link»
-Включите Режим разработчика: Параметры (Win+I) → Конфиденциальность и
-защита → Для разработчиков → Режим разработчика. Затем снова `npm run build`.
+Параметры (Win+I) → Конфиденциальность и защита → Для разработчиков → Режим разработчика. Затем снова `npm run build`.
 
-### Автообновление (GitHub Releases)
+### Автообновление
 
 Leaf проверяет обновления при запуске. Когда доступна новая версия, рядом
-с кнопкой языка (внизу слева) появляется неброский значок. Клик по нему →
-обновление тихо скачивается в фоне → приложение перезапускается уже
-обновлённым. Заметки при этом не затрагиваются.
+с кнопкой языка (внизу слева) появляется значок. Клик → обновление скачивается
+в фоне → приложение перезапускается уже обновлённым. Заметки не затрагиваются.
 
-#### Как выпустить новую версию
-1. Поднимите номер в `package.json` (поле `version`).
-2. Соберите и опубликуйте релиз:
+#### Выпуск новой версии
+1. Поднять `version` в `package.json`.
+2. Собрать и опубликовать:
    ```
-   set GH_TOKEN=ваш_personal_access_token
+   set GH_TOKEN=ваш_токен
    npm run release
    ```
-3. У пользователей на запуске появится значок обновления.
 
-> `GH_TOKEN` — персональный токен GitHub с правом `repo` (или `public_repo`
-> для публичного репозитория). Создаётся в Settings → Developer settings →
-> Personal access tokens.
-
-#### Про «неизвестного издателя»
-Без платного сертификата подписи кода Windows SmartScreen может один раз
-показать «неизвестный издатель» при **первой ручной** установке. Дальнейшие
-автообновления проходят тихо.
+> `GH_TOKEN` — персональный токен GitHub с правом `public_repo`. Создаётся
+> в Settings → Developer settings → Personal access tokens.
 
 ### Где хранятся заметки
 ```
 C:\Users\ВашеИмя\AppData\Roaming\Leaf\notes-data.json
 ```
-Заметки под паролем хранятся в зашифрованном виде (AES-256). Если забыть
-пароль, заметку не открыть — восстановления нет. При деинсталляции данные
-**не** удаляются.
+Заметки под паролем хранятся зашифрованными (AES-256). При деинсталляции данные **не** удаляются.
 
 ### Лицензия
 MIT — см. файл `LICENSE`.
 
 ---
 
-## 🇬🇧 Leaf — notes app for Windows
+## Leaf — notes for Windows
 
 A minimalist notes app: folders and smart folders, tags (#), search, pinned
-notes, checklists, tables, images, formatting, trash, password-protected
-notes (AES-256), multi-window, dark theme, language toggle (RU/EN) and
-**silent auto-updates**. All data stays on your computer.
+notes, checklists, tables, images, formatting, trash, password-protected notes
+(AES-256), multi-window, dark theme, language toggle (RU/EN) and **silent
+auto-updates**. All data stays on your computer.
 
-Stack: Electron + plain HTML/CSS/JS, no frameworks. The Inter font is bundled
-and works offline.
+Stack: Electron + plain HTML/CSS/JS, no frameworks. Inter font is bundled and works offline.
 
 ### Download
 
-Get the latest `.exe` installer from the [Releases](https://github.com/ParkerShot/Leaf/releases) page.
+Latest `.exe` installer on the [Releases](https://github.com/ParkerShot/Leaf/releases) page.
 
 ### Project files
-- `main.js`     — Electron main process: window, storage, encryption, PDF export, auto-update
+- `main.js`     — main process: window, storage, encryption, PDF export, auto-update
 - `preload.js`  — Electron bridge (`notesAPI`)
 - `index.html`  — markup (loads `styles.css` and `app.js`)
 - `styles.css`  — all styles
@@ -138,48 +127,36 @@ npm run build
 A `dist` folder will appear with `Leaf Setup 1.5.0.exe`.
 
 #### If the build fails on download (GitHub timeout)
-Set a mirror before building, in the same shell:
 ```
 set ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
 set ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/
 ```
 
 #### If you get "Cannot create symbolic link"
-Enable Developer Mode: Settings (Win+I) → Privacy & security → For developers
-→ Developer Mode. Then run `npm run build` again.
+Settings (Win+I) → Privacy & security → For developers → Developer Mode. Then run `npm run build` again.
 
-### Auto-update (GitHub Releases)
+### Auto-update
 
 Leaf checks for updates on launch. When a new version is available, a subtle
-icon appears next to the language button (bottom left). Click it → the update
-downloads silently in the background → the app restarts on the new version.
-Your notes are not touched.
+icon appears next to the language button (bottom left). Click it → downloads
+silently in the background → app restarts updated. Notes are not touched.
 
 #### Releasing a new version
-1. Bump the `version` field in `package.json`.
+1. Bump `version` in `package.json`.
 2. Build and publish:
    ```
-   set GH_TOKEN=your_personal_access_token
+   set GH_TOKEN=your_token
    npm run release
    ```
-3. Users will see the update icon on next launch.
 
-> `GH_TOKEN` is a GitHub personal access token with `repo` scope (or
-> `public_repo` for public repos). Create one in Settings → Developer
-> settings → Personal access tokens.
-
-#### About "unknown publisher"
-Without a paid code-signing certificate, Windows SmartScreen may show
-"unknown publisher" on the **first manual install**. Subsequent auto-updates
-are silent.
+> `GH_TOKEN` is a GitHub personal access token with `public_repo` scope.
+> Create one in Settings → Developer settings → Personal access tokens.
 
 ### Where notes are stored
 ```
 C:\Users\YourName\AppData\Roaming\Leaf\notes-data.json
 ```
-Password-protected notes are stored encrypted (AES-256). If you forget the
-password, the note cannot be recovered. Uninstalling the app does **not**
-delete your notes.
+Password-protected notes are encrypted (AES-256). Uninstalling does **not** delete notes.
 
 ### License
 MIT — see `LICENSE`.
