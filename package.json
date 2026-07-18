@@ -39,7 +39,8 @@
       {
         "provider": "github",
         "owner": "ParkerShot",
-        "repo": "Leaf"
+        "repo": "Leaf",
+        "releaseType": "release"
       }
     ],
     "files": [
