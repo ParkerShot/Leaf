@@ -2,7 +2,7 @@
 
 [RU](#leaf--заметки-для-windows) · [EN](#leaf--notes-for-windows)
 
-`v1.5.0`
+`v1.5.1`
 
 ---
 
@@ -46,7 +46,7 @@ npm start        # запустит приложение
 npm run build
 ```
 
-Появится папка `dist` с файлом `Leaf Setup 1.5.0.exe`.
+Появится папка `dist` с файлом `Leaf Setup 1.5.1.exe`.
 
 #### Если сборка падает на скачивании (таймаут GitHub)
 ```
@@ -124,7 +124,7 @@ npm start        # launches the app
 npm run build
 ```
 
-A `dist` folder will appear with `Leaf Setup 1.5.0.exe`.
+A `dist` folder will appear with `Leaf Setup 1.5.1.exe`.
 
 #### If the build fails on download (GitHub timeout)
 ```

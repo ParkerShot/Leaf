@@ -112,7 +112,7 @@
   .edit-body li{margin:2px 0}
   .edit-body blockquote{border-left:3px solid var(--accent-strong);margin:6px 0;padding:2px 0 2px 14px;color:var(--text-2)}
   .edit-body pre,.edit-body code{font-family:"SF Mono",ui-monospace,"Cascadia Code",Consolas,monospace;font-size:15px;white-space:pre-wrap}
-  .edit-body img{max-width:100%;border-radius:10px;margin:8px 0;display:block}
+  .edit-body img{max-width:100%;border-radius:10px;margin:8px 0;display:block;cursor:zoom-in}
   .edit-body table{border-collapse:collapse;margin:10px 0;width:auto}
   .edit-body td{border:1px solid var(--sep);padding:7px 10px;min-width:80px;font-size:15px}
   .edit-body table tr:first-child td{background:var(--tool-hover);font-weight:600}
@@ -125,7 +125,12 @@
   .edit-body .check-item.done .check-box{background:var(--accent-strong);border-color:var(--accent-strong)}
   .edit-body .check-item.done .check-box svg{opacity:1}
   .edit-body .check-item.done .check-text{color:var(--text-3);text-decoration:line-through}
+  .edit-body .check-item.done .check-text *{color:var(--text-3) !important}
   .edit-body .check-text{flex:1;outline:none;min-height:1.4em}
+  .img-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:9999;cursor:zoom-out;padding:32px}
+  .img-lightbox.show{display:flex;animation:lbIn .15s ease}
+  .img-lightbox img{max-width:100%;max-height:100%;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.5)}
+  @keyframes lbIn{from{opacity:0}to{opacity:1}}
 
   .no-selection{min-height:100%;display:grid;place-items:center;color:var(--text-3);text-align:center}
   .no-selection svg{width:60px;height:60px;opacity:.4;margin-bottom:12px}

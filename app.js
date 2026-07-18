@@ -452,16 +452,88 @@ const checkSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
   $("editBody").addEventListener("click",e=>{const box=e.target.closest(".check-box");if(box){box.closest(".check-item").classList.toggle("done");saveActive();}});
   $("editBody").addEventListener("keydown",e=>{
     if(e.key==="Tab"){e.preventDefault();document.execCommand(e.shiftKey?"outdent":"indent",false,null);saveActive();return;}
-    if(e.key==="Enter"){const sel=window.getSelection();const item=sel.anchorNode&&sel.anchorNode.parentElement?sel.anchorNode.parentElement.closest(".check-item"):null;
-      if(item){e.preventDefault();const txt=item.querySelector(".check-text");
-        if(txt.textContent.replace(/\u200b/g,"").trim()===""){const ul=item.closest(".checklist");const d=document.createElement("div");d.innerHTML="<br>";ul.after(d);item.remove();caret(d);}
-        else{const li=document.createElement("li");li.className="check-item";li.innerHTML='<span class="check-box">'+checkSVG+'</span><span class="check-text" contenteditable="true">&#8203;</span>';item.after(li);caret(li.querySelector(".check-text"));}
-        saveActive();}}});
+    if(e.key==="Enter"){
+      const sel=window.getSelection();
+      let anc=sel.anchorNode; if(anc&&anc.nodeType===3)anc=anc.parentElement;
+      const item=anc?anc.closest(".check-item"):null;
+      if(item){
+        e.preventDefault();
+        const txt=item.querySelector(".check-text");
+        if(txt.textContent.replace(/\u200b/g,"").trim()===""){
+          // пустой пункт → выходим из чек-листа
+          const ul=item.closest(".checklist");const d=document.createElement("div");d.innerHTML="<br>";ul.after(d);item.remove();if(!ul.querySelector(".check-item"))ul.remove();caret(d);
+        }else{
+          // разрезаем пункт по курсору: остаток текста уходит в НОВЫЙ пункт со своим чекбоксом
+          let frag=null;
+          if(sel.rangeCount){
+            const r=sel.getRangeAt(0);
+            if(txt===r.endContainer||txt.contains(r.endContainer)){
+              const tail=document.createRange();
+              tail.setStart(r.endContainer,r.endOffset);
+              tail.setEnd(txt,txt.childNodes.length);
+              frag=tail.extractContents();
+            }
+          }
+          const li=document.createElement("li");li.className="check-item";
+          const box=document.createElement("span");box.className="check-box";box.innerHTML=checkSVG;
+          const nt=document.createElement("span");nt.className="check-text";nt.setAttribute("contenteditable","true");
+          if(frag&&frag.textContent.replace(/\u200b/g,"")!=="")nt.appendChild(frag);else nt.innerHTML="&#8203;";
+          li.appendChild(box);li.appendChild(nt);
+          item.after(li);
+          if(txt.textContent.replace(/\u200b/g,"")==="")txt.innerHTML="&#8203;";
+          const cr=document.createRange();cr.selectNodeContents(nt);cr.collapse(true);sel.removeAllRanges();sel.addRange(cr);
+        }
+        saveActive();
+      }
+    }
+  });
   function caret(node){const r=document.createRange(),s=window.getSelection();r.selectNodeContents(node);r.collapse(false);s.removeAllRanges();s.addRange(r);}
 
   $("tableBtn").onclick=()=>{let html='<table>';for(let i=0;i<2;i++){html+='<tr>';for(let j=0;j<2;j++)html+='<td>&#8203;</td>';html+='</tr>';}html+='</table><div><br></div>';document.execCommand("insertHTML",false,html);$("editBody").focus();saveActive();};
   $("imgBtn").onclick=()=>$("imgInput").click();
   $("imgInput").onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{document.execCommand("insertHTML",false,'<img src="'+rd.result+'"><div><br></div>');saveActive();};rd.readAsDataURL(f);e.target.value="";};
+
+  // Очистка вставки от чужого оформления (фон и цвета из VS Code и т.п.)
+  function sanitizePaste(html){
+    const doc=new DOMParser().parseFromString(html,"text/html");
+    doc.querySelectorAll("style,script,meta,link,title,head").forEach(n=>n.remove());
+    const allowed={B:1,STRONG:1,I:1,EM:1,U:1,A:1,UL:1,OL:1,LI:1,BR:1,P:1,DIV:1,H1:1,H2:1,H3:1,BLOCKQUOTE:1,SPAN:1,CODE:1,PRE:1,IMG:1,TABLE:1,TR:1,TD:1,TH:1,TBODY:1,THEAD:1};
+    doc.body.querySelectorAll("*").forEach(el=>{
+      [...el.attributes].forEach(a=>{
+        const n=a.name.toLowerCase();
+        const keep=(el.tagName==="A"&&n==="href")||(el.tagName==="IMG"&&n==="src");
+        if(!keep)el.removeAttribute(a.name);
+      });
+    });
+    let changed=true;
+    while(changed){
+      changed=false;
+      doc.body.querySelectorAll("*").forEach(el=>{
+        if(!allowed[el.tagName]){const p=el.parentNode;if(p){while(el.firstChild)p.insertBefore(el.firstChild,el);p.removeChild(el);changed=true;}}
+      });
+    }
+    return doc.body.innerHTML;
+  }
+  $("editBody").addEventListener("paste",e=>{
+    if($("editBody").getAttribute("contenteditable")!=="true")return;
+    const cd=e.clipboardData||window.clipboardData;if(!cd)return;
+    e.preventDefault();
+    const html=cd.getData("text/html");
+    if(html){document.execCommand("insertHTML",false,sanitizePaste(html));}
+    else{document.execCommand("insertText",false,cd.getData("text/plain"));}
+    saveActive();scheduleHighlight();
+  });
+
+  // Просмотр изображений на весь экран
+  (function(){
+    const ov=document.createElement("div");ov.className="img-lightbox";ov.innerHTML='<img alt="">';
+    document.body.appendChild(ov);
+    const big=ov.querySelector("img");
+    function close(){ov.classList.remove("show");big.src="";}
+    ov.addEventListener("click",close);
+    document.addEventListener("keydown",ev=>{if(ev.key==="Escape"&&ov.classList.contains("show"))close();});
+    $("editBody").addEventListener("click",ev=>{const img=ev.target.closest("img");if(img&&img.src){big.src=img.src;ov.classList.add("show");}});
+  })();
 
   $("moveBtn").onclick=async()=>{const n=notes.find(x=>x.id===activeId);if(!n)return;const opts=folders.filter(f=>!f.system).map(f=>({id:f.id,label:f.name}));const id=await dlgPick({title:t("movePickTitle"),options:opts});if(id){n.folder=id;renderFolders();renderList();persist();}};
 
